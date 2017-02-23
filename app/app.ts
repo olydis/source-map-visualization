@@ -1,7 +1,11 @@
+declare var require: any;
 require("imports?this=>window!jquery-hashchange");
-var SourceMap = require("source-map");
-var UglifyJS = require("./uglify-js");
-var generateHtml = require("./generateHtml");
+
+import * as $$ from "jquery";
+import * as SourceMap from "source-map";
+import { generateHtml } from "./generateHtml";
+
+const $: any = $$;
 
 var exampleKinds = ["coffee", "simple-coffee", "typescript", "babel"];
 var SOURCE_MAPPING_URL_REG_EXP = /\/\/[@#]\s*sourceMappingURL\s*=\s*data:[^\n]*?base64,([^\n]*)/;
@@ -25,7 +29,7 @@ $(function() {
 
 		if(exampleKind.indexOf("base64") === 0) {
 			var input = exampleKind.split(",").slice(1).map(function(str) {
-				return decodeURIComponent(escape(atob(str)));
+				return decodeURIComponent(encodeURI(atob(str)));
 			});
 			var gen = input.shift();
 			var map = JSON.parse(input.shift());
@@ -66,7 +70,7 @@ $(function() {
 					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
 					generatedSource = generatedSource.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
 					try {
-						sourceMap = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
+						sourceMap = JSON.parse(decodeURIComponent(encodeURI(atob(match[1]))));
 						return step3();
 					} catch(e) {}
 				}
@@ -169,7 +173,7 @@ $(function() {
 		e.preventDefault();
 
 		var m = $(".custom-modal").data("modal");
-		if(m && m.isShown) return;
+		if(m && m.isShown) return undefined;
 		$(".custom-modal .modal-body").html(require("./custom-drag.jade")());
 		$(".custom-modal").modal({
 			show: true
@@ -217,7 +221,7 @@ $(function() {
 					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
 					generatedFile.result = generatedFile.result.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
 					sourceMapFile = {
-						result: decodeURIComponent(escape(atob(match[1])))
+						result: decodeURIComponent(encodeURI(atob(match[1])))
 					};
 					sourceMapFile.json = JSON.parse(sourceMapFile.result);
 				} else {
@@ -272,13 +276,12 @@ $(function() {
 				return $(".custom-error").removeClass("hide").text(err.message).attr("title", err.stack);
 			}
 		}
-		return false;
 	});
 
 	function loadCustomExample(sourcesContent, generatedSource, sourceMap) {
 		loadExample(sourcesContent, generatedSource, sourceMap);
 		$(".custom-link").attr("href", "#base64," + [generatedSource, JSON.stringify(sourceMap)].concat(sourcesContent).map(function(str){
-			return btoa(unescape(encodeURIComponent( str )));
+			return btoa(decodeURI(encodeURIComponent( str )));
 		}).join(",")).text("Link to this");
 	}
 	function loadExample(sources, exampleJs, exampleMap) {
@@ -287,57 +290,29 @@ $(function() {
 		try {
 			exampleMap.file = exampleMap.file || "example.js";
 			var map = new SourceMap.SourceMapConsumer(exampleMap);
-			
 			visu.html(generateHtml(map, exampleJs, sources));
 
-
-
-			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", function() {
+			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", (evt) => {
 				$(".selected").removeClass("selected");
-				var mappedItems = $(this).data('mapped');
+				var mappedItems = $(evt.target).data('mapped');
 				if (!mappedItems){
-					var source = $(this).data("source");
-					var line = $(this).data("line");
-					var column = $(this).data("column");
+					var source = $(evt.target).data("source");
+					var line = $(evt.target).data("line");
+					var column = $(evt.target).data("column");
 					mappedItems = $(".item-" + source + "-" + line + "-" + column);
-					var twinItem = mappedItems.not('.mapping-item').not(this);
-					$(this).data('mapped', mappedItems)
-					$(this).data('twin', twinItem)
+					var twinItem = mappedItems.not('.mapping-item').not(evt.target);
+					$(evt.target).data('mapped', mappedItems)
+					$(evt.target).data('twin', twinItem)
 				}
 				$(mappedItems).addClass("selected");
-			}).delegate(".original-item, .generated-item, .mapping-item", "click", function() {
-				var twinItem = $(this).data('twin');
+			}).delegate(".original-item, .generated-item, .mapping-item", "click", (evt) => {
+				var twinItem = $(evt.target).data('twin');
 				var elem = $(twinItem).get(0)
 				if (elem && elem.scrollIntoViewIfNeeded)
 					elem.scrollIntoViewIfNeeded();
 			});
 
 			visu.append($("<br>"));
-			visu.append($("<br>"));
-			visu.append($("<button>")
-				.addClass("btn btn-primary")
-				.text("minimize")
-				.attr("title", "Minimize the file with uglify-js and combine the SourceMaps.")
-				.click(function() {
-					var result = UglifyJS.minify(exampleJs, {
-						outSourceMap: "example.map",
-						output: {
-							beautify: true
-						}
-					});
-					var minmap = JSON.parse(result.map);
-					minmap.file = "example";
-					minmap = new SourceMap.SourceMapConsumer(result.map);
-					minmap = SourceMap.SourceMapGenerator.fromSourceMap(minmap);
-					minmap.setSourceContent("?", exampleJs);
-					map.sourcesContent = sources;
-					minmap.applySourceMap(map, "?");
-					minmap = minmap.toJSON();
-					var idx = minmap.sources.indexOf("?");
-
-					loadExample(minmap.sourcesContent, result.code, minmap);
-					oldHash = window.location.hash = "custom";
-				}));
 		} catch(e) {
 			throw e;
 		} finally {
@@ -352,18 +327,10 @@ function readFile(file, callback) {
 	fileReader.onload = function(e) {
 		callback(null, fileReader.result);
 	};
-	fileReader.onprogess = function(evt) {
-		if (evt.lengthComputable) {
-			var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
-			if (percentLoaded < 100) {
-				$(".read-progress").css("width", percentLoaded + "%");
-			}
-		}
-	};
 	fileReader.onabort = function(e) {
 		return callback(new Error('File read cancelled'));
 	};
-	fileReader.onerror = function(evt) {
+	fileReader.onerror = function(evt: any) {
 		switch(evt.target.error.code) {
 			case evt.target.error.NOT_FOUND_ERR:
 				return callback(new Error('File Not Found!'));

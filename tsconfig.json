@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "module": "commonjs",
+        "noEmitOnError": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "sourceMap": true,
+        "target": "es2016",
+        "lib": [
+            "es6",
+            "dom"
+        ],
+        "newLine": "LF"
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}

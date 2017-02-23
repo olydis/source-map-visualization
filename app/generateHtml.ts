@@ -1,8 +1,8 @@
-var SourceMap = require("source-map");
+import * as SourceMap from "source-map";
 var LINESTYLES = 5;
 var MAX_LINES = 5000;
 
-module.exports = function(map, generatedCode, sources) {
+export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, sources) {
 	var generatedSide = [];
 	var originalSide = [];
 	var mappingsSide = [];
@@ -37,18 +37,18 @@ module.exports = function(map, generatedCode, sources) {
 		}).join(" ") + ">" + (text + "").replace(/</g, "&lt;") + "</span>";
 	}
 
-	var mapSources = map.sources;
+	var mapSources = (map as any).sources;
 
 	var generatedLine = 1;
 	var nodes = SourceMap.SourceNode.fromStringWithSourceMap(generatedCode, map).children;
 	nodes.forEach(function(item, idx) {
 		if(generatedLine > MAX_LINES) return;
 		if(typeof item === "string") {
-			item.split("\n").forEach(function(line) {
-				addTo(generatedSide, generatedLine, line);
-				generatedLine++;
-			});
-			generatedLine--;
+			// item.split("\n").forEach(function(line) {
+			// 	addTo(generatedSide, generatedLine, line);
+			// 	generatedLine++;
+			// });
+			// generatedLine--;
 		} else {
 			var str = item.toString();
 			var source = mapSources.indexOf(item.source);
@@ -70,7 +70,7 @@ module.exports = function(map, generatedCode, sources) {
 	var lastGenLine = 1;
 	var lastOrgSource = "";
 	var mappingsLine = 1;
-	map.eachMapping(function(mapping) {
+	map.eachMapping(mapping => {
 		if(mapping.generatedLine > MAX_LINES) return;
 		while(lastGenLine < mapping.generatedLine) {
 			mappingsLine++;
@@ -104,9 +104,9 @@ module.exports = function(map, generatedCode, sources) {
 	var currentSource = null;
 	var exampleLines;
 	var mappingsBySource = {};
-	map.eachMapping(function(mapping) {
+	map.eachMapping(mapping => {
 		if(typeof mapping.originalLine !== "number") return;
-		if(mapping.generatedLine > MAX_LINES) return limited = true;
+		if(mapping.generatedLine > MAX_LINES) { limited = true; return }
 		if(!mappingsBySource[mapping.source]) mappingsBySource[mapping.source] = [];
 		mappingsBySource[mapping.source].push(mapping);
 	}, undefined, SourceMap.SourceMapConsumer.ORIGINAL_ORDER);
@@ -244,6 +244,4 @@ module.exports = function(map, generatedCode, sources) {
 	return "<table><tbody>" + tableRows.map(function(row) {
 		return "<tr>" + row + "</tr>";
 	}).join("") + "</tbody></table>";
-
-
 }

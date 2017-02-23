@@ -1,4 +1,5 @@
 import * as SourceMap from "source-map";
+import * as $ from "jquery";
 var LINESTYLES = 5;
 var MAX_LINES = 5000;
 
@@ -12,29 +13,28 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 	}
 
 	function span(text, options) {
-		var attrs = {};
+		const result = $("<span>");
+
 		if(options) {
 			if(options.generated) {
-				attrs["class"] = "generated-item";
+				result.addClass("generated-item");
 			} else if(options.mapping) {
-				attrs["class"] = "mapping-item";
+				result.addClass("mapping-item");
 			} else {
-				attrs["class"] = "original-item";
+				result.addClass("original-item");
 			}
 			if(typeof options.source !== "undefined") {
-				attrs["class"] += " item-" + options.source + "-" + options.line + "-" + options.column;
+				result.addClass("item-" + options.source + "-" + options.line + "-" + options.column);
 			}
-			attrs["class"] += " style-" + (options.line%LINESTYLES);
-			attrs["title"] = options.name;
-			attrs["data-source"] = options.source;
-			attrs["data-line"] = options.line;
-			attrs["data-column"] = options.column;
+			result.addClass("style-" + (options.line%LINESTYLES));
+			result.attr("title", options.name);
+			result.attr("data-source", options.source);
+			result.attr("data-line", options.line);
+			result.attr("data-column", options.column);
 		}
-		return "<span " + Object.keys(attrs).filter(function(key) {
-			return typeof attrs[key] !== "undefined";
-		}).map(function(key) {
-			return key + "=\"" + attrs[key] + "\"";
-		}).join(" ") + ">" + (text + "").replace(/</g, "&lt;") + "</span>";
+		result.text(text);
+
+		return result.prop("outerHTML");
 	}
 
 	var mapSources = (map as any).sources;

@@ -3,16 +3,19 @@ import * as $ from "jquery";
 var LINESTYLES = 5;
 var MAX_LINES = 5000;
 
-export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, sources) {
-	var generatedSide = [];
-	var originalSide = [];
-	var mappingsSide = [];
+export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: string, sources: string[]): JQuery {
+	var generatedSide: JQuery[][] = [];
+	var originalSide: JQuery[][] = [];
+	var mappingsSide: JQuery[][] = [];
 
-	function addTo(side, line, html) {
-		side[line] = (side[line] || "") + html;
+	function addTo(side: JQuery[][], line: number, html: JQuery) {
+		side[line] = (side[line] || []).concat(html);
 	}
 
-	function span(text, options) {
+	function text(content: string): JQuery {
+		return $("<span>").text(content)
+	}
+	function span(content: string | number, options: any): JQuery {
 		const result = $("<span>");
 
 		if(options) {
@@ -32,9 +35,8 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 			result.attr("data-line", options.line);
 			result.attr("data-column", options.column);
 		}
-		result.text(text);
-
-		return result.prop("outerHTML");
+		result.text(content);
+		return result;
 	}
 
 	var mapSources = (map as any).sources;
@@ -43,27 +45,19 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 	var nodes = SourceMap.SourceNode.fromStringWithSourceMap(generatedCode, map).children;
 	nodes.forEach(function(item, idx) {
 		if(generatedLine > MAX_LINES) return;
-		if(typeof item === "string") {
-			// item.split("\n").forEach(function(line) {
-			// 	addTo(generatedSide, generatedLine, line);
-			// 	generatedLine++;
-			// });
-			// generatedLine--;
-		} else {
-			var str = item.toString();
-			var source = mapSources.indexOf(item.source);
-			str.split("\n").forEach(function(line) {
-				addTo(generatedSide, generatedLine, span(line, {
-					generated: true,
-					source: source,
-					line: item.line,
-					column: item.column,
-					name: item.name
-				}));
-				generatedLine++
-			});
-			generatedLine--;
-		}
+		var str = item.toString();
+		var source = mapSources.indexOf(item.source);
+		str.split("\n").forEach(function(line) {
+			addTo(generatedSide, generatedLine, span(line, {
+				generated: true,
+				source: source,
+				line: item.line,
+				column: item.column,
+				name: item.name
+			}));
+			generatedLine++
+		});
+		generatedLine--;
 	});
 
 
@@ -75,11 +69,11 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 		while(lastGenLine < mapping.generatedLine) {
 			mappingsLine++;
 			lastGenLine++;
-			addTo(mappingsSide, mappingsLine, lastGenLine + ": ");
+			addTo(mappingsSide, mappingsLine, text(lastGenLine + ": "));
 		}
-		if(typeof mapping.originalLine == "number") {
+		if(typeof mapping.originalLine === "number") {
 			if(lastOrgSource !== mapping.source && mapSources.length > 1) {
-				addTo(mappingsSide, mappingsLine, "[" + mapping.source + "] ");
+				addTo(mappingsSide, mappingsLine, text("[" + mapping.source + "] "));
 				lastOrgSource = mapping.source;
 			}
 			var source = mapSources.indexOf(mapping.source);
@@ -90,29 +84,27 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 				column: mapping.originalColumn
 			}));
 		} else {
-			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn, {
-				mapping: true
-			}));
+			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn, { mapping: true }));
 		}
-		addTo(mappingsSide, mappingsLine, "  ");
+		addTo(mappingsSide, mappingsLine, text("  "));
 	});
 
 
 	var originalLine = 1;
 	var line = 1, column = 0, currentOutputLine = 1, targetOutputLine = -1, limited = false;
-	var lastMapping = null;
-	var currentSource = null;
-	var exampleLines;
-	var mappingsBySource = {};
+	var lastMapping: SourceMap.MappingItem = null;
+	var currentSource: string = null;
+	var exampleLines: string[];
+	var mappingsBySource: { [key: string]: SourceMap.MappingItem[] } = {};
 	map.eachMapping(mapping => {
 		if(typeof mapping.originalLine !== "number") return;
 		if(mapping.generatedLine > MAX_LINES) { limited = true; return }
 		if(!mappingsBySource[mapping.source]) mappingsBySource[mapping.source] = [];
 		mappingsBySource[mapping.source].push(mapping);
 	}, undefined, SourceMap.SourceMapConsumer.ORIGINAL_ORDER);
-	Object.keys(mappingsBySource).map(function(source) {
+	Object.keys(mappingsBySource).map<[string, number]>(source => {
 		return [source, mappingsBySource[source][0].generatedLine];
-	}).sort(function(a, b) {
+	}).sort((a, b) => {
 		if(a[0] === "?") return 1;
 		if(b[0] === "?") return -1;
 		return a[1] - b[1];
@@ -131,14 +123,13 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 		}
 		var startLine = mappings.map(function(mapping) {
 			return mapping.generatedLine - mapping.originalLine + 1;
-		}).sort(function(a, b) { return a - b });
-		startLine = startLine[0];
+		}).sort(function(a, b) { return a - b })[0];
 		while(currentOutputLine < startLine) {
 			originalLine++;
 			currentOutputLine++;
 		}
 		if(mapSources.length > 1) {
-			addTo(originalSide, originalLine, "<h4>" + source.replace(/</g, "&lt;") + "</h4>");
+			addTo(originalSide, originalLine, $("<h4>").text(source));
 			originalLine++;
 		}
 		var exampleSource = sources[mapSources.indexOf(source)];
@@ -159,24 +150,24 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 					line++; column = 0;
 					currentOutputLine++;
 					while(line < mapping.originalLine) {
-						addTo(originalSide, originalLine, exampleLines.shift());
+						addTo(originalSide, originalLine, text(exampleLines.shift()));
 						originalLine++;
 						line++; column = 0;
 						currentOutputLine++;
 					}
-					startLine = [];
+					let startLinex = [];
 					for(var i = idx; i < mappings.length && mappings[i].originalLine <= mapping.originalLine + 1; i++) {
-						startLine.push(mappings[i].generatedLine - mappings[i].originalLine + mapping.originalLine);
+						startLinex.push(mappings[i].generatedLine - mappings[i].originalLine + mapping.originalLine);
 					}
-					startLine.sort(function(a, b) { return a - b });
-					startLine = startLine[0];
+					startLinex.sort((a, b) => a - b);
+					startLine = startLinex[0];
 					while(typeof startLine !== "undefined" && currentOutputLine < startLine) {
-						addTo(originalSide, originalLine, "~");
+						addTo(originalSide, originalLine, text("~"));
 						originalLine++;
 						currentOutputLine++;
 					}
 					if(column < mapping.originalColumn) {
-						addTo(originalSide, originalLine, shiftColumns(mapping.originalColumn - column));
+						addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)));
 					}
 				}
 				if(mapping.originalColumn > column) {
@@ -189,12 +180,12 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 				}
 			} else {
 				while(line < mapping.originalLine) {
-					addTo(originalSide, originalLine, exampleLines.shift());
+					addTo(originalSide, originalLine, text(exampleLines.shift()));
 					originalLine++;
 					line++; column = 0;
 				}
 				if(column < mapping.originalColumn) {
-					addTo(originalSide, originalLine, shiftColumns(mapping.originalColumn - column));
+					addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)));
 				}
 			}
 			lastMapping = mapping;
@@ -211,16 +202,16 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 			}));
 		}
 		if(!limited) {
-			exampleLines.forEach(function(line) {
+			exampleLines.forEach(line => {
 				originalLine++;
 				currentOutputLine++;
-				addTo(originalSide, originalLine, line);
+				addTo(originalSide, originalLine, text(line));
 			});
 		}
 	}
 	endFile();
 
-	function shiftColumns(count) {
+	function shiftColumns(count: number): string {
 		var nextLine = exampleLines[0];
 		exampleLines[0] = nextLine.substr(count);
 		column += count;
@@ -229,19 +220,21 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode, so
 
 	var length = Math.max(originalSide.length, generatedSide.length, mappingsSide.length);
 
-	var tableRows = [];
+	var tableRows: JQuery[][] = [];
 
 	for(var i = 0; i < length; i++) {
 		tableRows[i] = [
-			originalSide[i] || "",
-			generatedSide[i] || "",
-			mappingsSide[i] || ""
+			originalSide[i] || [],
+			generatedSide[i] || [],
+			mappingsSide[i] || []
 		].map(function(cell) {
-			return "<td>" + cell + "</td>";
-		}).join("");
+			return $("<td>").append(cell);
+		});
 	}
 
-	return "<table><tbody>" + tableRows.map(function(row) {
-		return "<tr>" + row + "</tr>";
-	}).join("") + "</tbody></table>";
+	const table = $("<table>");
+	for (const row of tableRows) {
+		table.append($("<tr>").append(row));
+	}
+	return table;
 }

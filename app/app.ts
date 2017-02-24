@@ -1,4 +1,5 @@
 declare var require: any;
+declare var escape: any, unescape: any;
 require("imports?this=>window!jquery-hashchange");
 
 import * as $$ from "jquery";
@@ -29,7 +30,7 @@ $(function() {
 
 		if(exampleKind.indexOf("base64") === 0) {
 			var input = exampleKind.split(",").slice(1).map(function(str) {
-				return decodeURIComponent(encodeURI(atob(str)));
+				return decodeURIComponent(escape(atob(str)));
 			});
 			var gen = input.shift();
 			var map = JSON.parse(input.shift());
@@ -47,7 +48,9 @@ $(function() {
 			});
 			$(".custom-error").addClass("hide");
 
-			var generatedSource, sourceMap, sourcesContent = [];
+			var generatedSource: string;
+			var sourceMap: SourceMap.RawSourceMap;
+			var sourcesContent: string[] = [];
 			$(".custom-continue").click(continueWithStep2);
 			$(".file").change(continueWithStep2);
 			function continueWithStep2() {
@@ -70,7 +73,7 @@ $(function() {
 					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
 					generatedSource = generatedSource.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
 					try {
-						sourceMap = JSON.parse(decodeURIComponent(encodeURI(atob(match[1]))));
+						sourceMap = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
 						return step3();
 					} catch(e) {}
 				}
@@ -111,7 +114,7 @@ $(function() {
 					sourcesContent = sourceMap.sourcesContent;
 					return step4();
 				}
-				var sourceFile, sourceFileIndex;
+				var sourceFile, sourceFileIndex: number;
 				for(var i = 0; i < sourceMap.sources.length; i++) {
 					if(!sourcesContent[i]) {
 						sourceFile = sourceMap.sources[i];
@@ -168,7 +171,7 @@ $(function() {
 	});
 	$(window).hashchange();
 
-	$(window).on("dragenter dragover", function(e) {
+	$(window).on("dragenter dragover", function(e: JQueryEventObject) {
 		e.stopPropagation();
 		e.preventDefault();
 
@@ -181,14 +184,14 @@ $(function() {
 		$(".custom-error").addClass("hide");
 		return false;
 	});
-	$(window).on("drop", function(e) {
+	$(window).on("drop", function(e: JQueryEventObject) {
 		e.stopPropagation();
 		e.preventDefault();
 
-		var files = e.originalEvent.dataTransfer.files;
+		var files = (e.originalEvent as DragEvent).dataTransfer.files;
 		var count = files.length;
 		if(count === 0) return false;
-		var filesData = Array.prototype.map.call(files, function(file) { return { file: file, name: file.name }; });
+		var filesData: { file: any, name: string, err: any, result: any }[] = Array.prototype.map.call(files, function(file: any) { return { file: file, name: file.name }; });
 		filesData.forEach(function(data) {
 			readFile(data.file, function(err, result) {
 				data.err = err;
@@ -206,7 +209,7 @@ $(function() {
 					}).join("\n");
 					throw new Error(errorText);
 				}
-				var sourceMapFile, generatedFile;
+				var sourceMapFile: any, generatedFile;
 				var javascriptWithSourceMap = filesData.filter(function(data) {
 					return (/\.js$/.test(data.name) && SOURCE_MAPPING_URL_REG_EXP.test(data.result)) ||
 							(/\.(css|js)$/.test(data.name) && SOURCE_MAPPING_URL_REG_EXP2.test(data.result));
@@ -221,7 +224,7 @@ $(function() {
 					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
 					generatedFile.result = generatedFile.result.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
 					sourceMapFile = {
-						result: decodeURIComponent(encodeURI(atob(match[1])))
+						result: decodeURIComponent(escape(atob(match[1])))
 					};
 					sourceMapFile.json = JSON.parse(sourceMapFile.result);
 				} else {
@@ -271,28 +274,28 @@ $(function() {
 					sourceMapFile.json
 				);
 				$(".custom-modal").modal("hide");
-				oldHash = window.location.hash = "custom";
 			} catch(err) {
 				return $(".custom-error").removeClass("hide").text(err.message).attr("title", err.stack);
 			}
 		}
 	});
 
-	function loadCustomExample(sourcesContent, generatedSource, sourceMap) {
+	function loadCustomExample(sourcesContent: string[], generatedSource: string, sourceMap: SourceMap.RawSourceMap) {
 		loadExample(sourcesContent, generatedSource, sourceMap);
-		$(".custom-link").attr("href", "#base64," + [generatedSource, JSON.stringify(sourceMap)].concat(sourcesContent).map(function(str){
-			return btoa(decodeURI(encodeURIComponent( str )));
-		}).join(",")).text("Link to this");
+		const hash = "base64," + [generatedSource, JSON.stringify(sourceMap)].concat(sourcesContent as any).map(function(str){
+			return btoa(unescape(encodeURIComponent( str )));
+		}).join(",");
+		window.location.hash = hash;
 	}
-	function loadExample(sources, exampleJs, exampleMap) {
+	function loadExample(sources: string[], exampleJs: string, exampleMap: SourceMap.RawSourceMap) {
 		var visu = $(".visu").hide().text("");
 
 		try {
 			exampleMap.file = exampleMap.file || "example.js";
 			var map = new SourceMap.SourceMapConsumer(exampleMap);
-			visu.html(generateHtml(map, exampleJs, sources));
+			visu.append(generateHtml(map, exampleJs, sources));
 
-			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", (evt) => {
+			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", (evt: JQueryEventObject) => {
 				$(".selected").removeClass("selected");
 				var mappedItems = $(evt.target).data('mapped');
 				if (!mappedItems){
@@ -305,7 +308,7 @@ $(function() {
 					$(evt.target).data('twin', twinItem)
 				}
 				$(mappedItems).addClass("selected");
-			}).delegate(".original-item, .generated-item, .mapping-item", "click", (evt) => {
+			}).delegate(".original-item, .generated-item, .mapping-item", "click", (evt: JQueryEventObject) => {
 				var twinItem = $(evt.target).data('twin');
 				var elem = $(twinItem).get(0)
 				if (elem && elem.scrollIntoViewIfNeeded)
@@ -321,7 +324,7 @@ $(function() {
 	}
 });
 
-function readFile(file, callback) {
+function readFile<T>(file: Blob, callback: (err?: Error, result?: any) => any): void {
 	var fileReader = new FileReader();
 	fileReader.readAsText(file, "utf-8");
 	fileReader.onload = function(e) {
@@ -344,8 +347,8 @@ function readFile(file, callback) {
 	};
 }
 
-function loadFile(fileInput, callback) {
-	var file = $(fileInput)[0].files[0];
+function loadFile(fileInput: HTMLInputElement, callback: (err?: Error, result?: any) => any) {
+	var file = fileInput.files[0];
 	if (!file) return callback();
 	readFile(file, callback);
 }

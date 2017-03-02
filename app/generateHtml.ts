@@ -1,6 +1,6 @@
 import * as SourceMap from "source-map";
 import * as $ from "jquery";
-var LINESTYLES = 5;
+var LINESTYLES = 6;
 var MAX_LINES = 5000;
 
 export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: string, sources: string[]): JQuery {
@@ -8,12 +8,17 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	var originalSide: JQuery[][] = [];
 	var mappingsSide: JQuery[][] = [];
 
-	function addTo(side: JQuery[][], line: number, html: JQuery) {
+	function addTo(side: JQuery[][], line: number, html: JQuery, uid: string): void {
+		if (html.text().length === 0) return;
 		side[line] = (side[line] || []).concat(html);
+		if (uid) {
+			html.attr("data-key", uid);
+			html.addClass("style-" + (+uid.split(";")[1]%LINESTYLES));
+		}
 	}
 
 	function text(content: string): JQuery {
-		return $("<span>").text(content)
+		return $("<span>").text(content);
 	}
 	function span(content: string | number, options: any): JQuery {
 		const result = $("<span>");
@@ -29,17 +34,15 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 			if(typeof options.source !== "undefined") {
 				result.addClass("item-" + options.source + "-" + options.line + "-" + options.column);
 			}
-			result.addClass("style-" + (options.line%LINESTYLES));
 			result.attr("title", options.name);
-			result.attr("data-source", options.source);
-			result.attr("data-line", options.line);
-			result.attr("data-column", options.column);
 		}
 		result.text(content);
 		return result;
 	}
 
 	var mapSources = (map as any).sources;
+
+	const getKey = (mapping: SourceMap.MappingItem) => mapping.generatedColumn === undefined ? null : mapping.generatedColumn + ";" + mapping.generatedLine;
 
 	var generatedLine = 1;
 	var nodes = SourceMap.SourceNode.fromStringWithSourceMap(generatedCode, map).children;
@@ -48,18 +51,18 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 		var str = item.toString();
 		var source = mapSources.indexOf(item.source);
 		str.split("\n").forEach(function(line) {
+			const col = (generatedSide[generatedLine] || []).reduce((c, j) => c + j.text().length, 0);
 			addTo(generatedSide, generatedLine, span(line, {
 				generated: true,
 				source: source,
 				line: item.line,
 				column: item.column,
 				name: item.name
-			}));
-			generatedLine++
+			}), item.line === undefined ? null : getKey({ generatedColumn: col, generatedLine: generatedLine, name: null, source: null, originalColumn: null, originalLine: null }));
+			generatedLine++;
 		});
 		generatedLine--;
 	});
-
 
 	var lastGenLine = 1;
 	var lastOrgSource = "";
@@ -69,11 +72,11 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 		while(lastGenLine < mapping.generatedLine) {
 			mappingsLine++;
 			lastGenLine++;
-			addTo(mappingsSide, mappingsLine, text(lastGenLine + ": "));
+			addTo(mappingsSide, mappingsLine, text(lastGenLine + ": "), null);
 		}
 		if(typeof mapping.originalLine === "number") {
 			if(lastOrgSource !== mapping.source && mapSources.length > 1) {
-				addTo(mappingsSide, mappingsLine, text("[" + mapping.source + "] "));
+				addTo(mappingsSide, mappingsLine, text("[" + mapping.source + "] "), getKey(mapping));
 				lastOrgSource = mapping.source;
 			}
 			var source = mapSources.indexOf(mapping.source);
@@ -82,11 +85,11 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 				source: source,
 				line: mapping.originalLine,
 				column: mapping.originalColumn
-			}));
+			}), getKey(mapping));
 		} else {
-			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn, { mapping: true }));
+			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn, { mapping: true }), getKey(mapping));
 		}
-		addTo(mappingsSide, mappingsLine, text("  "));
+		addTo(mappingsSide, mappingsLine, text("  "), null);
 	});
 
 
@@ -129,7 +132,7 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 			currentOutputLine++;
 		}
 		if(mapSources.length > 1) {
-			addTo(originalSide, originalLine, $("<h4>").text(source));
+			addTo(originalSide, originalLine, $("<h4>").text(source), null);
 			originalLine++;
 		}
 		var exampleSource = sources[mapSources.indexOf(source)];
@@ -145,12 +148,12 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 						source: source,
 						line: lastMapping.originalLine,
 						column: lastMapping.originalColumn
-					}));
+					}), getKey(lastMapping));
 					originalLine++;
 					line++; column = 0;
 					currentOutputLine++;
 					while(line < mapping.originalLine) {
-						addTo(originalSide, originalLine, text(exampleLines.shift()));
+						addTo(originalSide, originalLine, text(exampleLines.shift()), null);
 						originalLine++;
 						line++; column = 0;
 						currentOutputLine++;
@@ -162,12 +165,12 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 					startLinex.sort((a, b) => a - b);
 					startLine = startLinex[0];
 					while(typeof startLine !== "undefined" && currentOutputLine < startLine) {
-						addTo(originalSide, originalLine, text("~"));
-						originalLine++;
+						//addTo(originalSide, originalLine, text("~"));
+						//originalLine++;
 						currentOutputLine++;
 					}
 					if(column < mapping.originalColumn) {
-						addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)));
+						addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)), null);
 					}
 				}
 				if(mapping.originalColumn > column) {
@@ -176,16 +179,16 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 						source: source,
 						line: lastMapping.originalLine,
 						column: lastMapping.originalColumn
-					}));
+					}), null);
 				}
 			} else {
 				while(line < mapping.originalLine) {
-					addTo(originalSide, originalLine, text(exampleLines.shift()));
+					addTo(originalSide, originalLine, text(exampleLines.shift()), null);
 					originalLine++;
 					line++; column = 0;
 				}
 				if(column < mapping.originalColumn) {
-					addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)));
+					addTo(originalSide, originalLine, text(shiftColumns(mapping.originalColumn - column)), null);
 				}
 			}
 			lastMapping = mapping;
@@ -199,13 +202,13 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 				source: source,
 				line: lastMapping.originalLine,
 				column: lastMapping.originalColumn
-			}));
+			}), null);
 		}
 		if(!limited) {
 			exampleLines.forEach(line => {
 				originalLine++;
 				currentOutputLine++;
-				addTo(originalSide, originalLine, text(line));
+				addTo(originalSide, originalLine, text(line), null);
 			});
 		}
 	}
@@ -226,7 +229,7 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 		tableRows[i] = [
 			originalSide[i] || [],
 			generatedSide[i] || [],
-			mappingsSide[i] || []
+			//mappingsSide[i] || []
 		].map(function(cell) {
 			return $("<td>").append(cell);
 		});

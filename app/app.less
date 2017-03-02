@@ -1,49 +1,53 @@
 span.original-item {
-	border-left: 1px solid black;
 	margin: 1px;
 	min-width: 3px;
-}
-span.generated-item {
-	margin: 1px;
 }
 span.selected {
 	background: black;
 	color: white;
 }
 .style-0 {
-	background: #FFFF66;
+	background: #FFC;
 }
 .style-1 {
-	background: #FFFFFF;
+	background: #FCC;
 }
 .style-2 {
-	background: #FFBBBB;
+	background: #FCF;
 }
 .style-3 {
-	background: #AAFFFF;
+	background: #CCF;
 }
 .style-4 {
-	background: #FFAAFF;
+	background: #CFF;
+}
+.style-5 {
+	background: #CFC;
 }
 
 pre {
 	overflow-x: auto;
+	border: none;
 }
 
 pre code {
-	white-space: pre-wrap;
-	word-break: normal;
-	word-wrap: normal;
+	display: inline-block;
+	word-break: keep-all;
+}
+
+code {
+	white-space: pre !important;
 }
 
 table {
-	width: 100%;
+	width: 500%;
 }
 
 tr, td {
 	margin: 0;
-    border-left: 1px solid #CCC;
+    border-right: 1px solid #CCC;
     padding-left: 16px;
+	line-height: 13px;
 }
 
 td > h4 {

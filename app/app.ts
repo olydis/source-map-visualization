@@ -29,9 +29,7 @@ $(function() {
 			$(".custom-modal").modal("hide");
 
 		if(exampleKind.indexOf("base64") === 0) {
-			var input = exampleKind.split(",").slice(1).map(function(str) {
-				return decodeURIComponent(escape(atob(str)));
-			});
+			var input = exampleKind.split(",").slice(1).map(atob);
 			var gen = input.shift();
 			var map = JSON.parse(input.shift());
 			loadExample(input, gen, map);
@@ -40,134 +38,17 @@ $(function() {
 		}
 		exampleKind = exampleKind.toLowerCase();
 		if(exampleKind === "custom") return;
-		if(exampleKind === "custom-choose") {
-
-			$(".custom-modal .modal-body").html(require("./custom-step1.jade")());
-			$(".custom-modal").modal({
-				show: true
-			});
-			$(".custom-error").addClass("hide");
-
-			var generatedSource: string;
-			var sourceMap: SourceMap.RawSourceMap;
-			var sourcesContent: string[] = [];
-			$(".custom-continue").click(continueWithStep2);
-			$(".file").change(continueWithStep2);
-			function continueWithStep2() {
-				$(".custom-continue").attr("disabled", true);
-				loadFile($(".file"), function(err, _generatedSource) {
-					$(".custom-error").addClass("hide");
-					if(err) {
-						$(".custom-error").removeClass("hide").text(err.message);
-						return $(".custom-continue").attr("disabled", false);
-					}
-					if(!_generatedSource)
-						return $(".custom-continue").attr("disabled", false);
-					generatedSource = _generatedSource;
-					step2();
-				});
-				return false;
-			}
-			function step2() {
-				if((SOURCE_MAPPING_URL_REG_EXP.test(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.test(generatedSource)) && typeof atob == "function") {
-					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
-					generatedSource = generatedSource.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
-					try {
-						sourceMap = JSON.parse(decodeURIComponent(escape(atob(match[1]))));
-						return step3();
-					} catch(e) {}
-				}
-				$(".custom-modal .modal-body").html(require("./custom-step2.jade")({
-					generatedSource: generatedSource
-				}));
-				$(".custom-continue").click(continueWithStep3);
-				$(".file").change(continueWithStep3);
-				function continueWithStep3() {
-					loadFile($(".file"), function(err, _sourceMap) {
-						$(".custom-error").addClass("hide");
-						if(err) {
-							$(".custom-error").removeClass("hide").text(err.message);
-							return $(".custom-continue").attr("disabled", false);
-						}
-						try {
-							_sourceMap = JSON.parse(_sourceMap);
-							if(!_sourceMap.sources) throw new Error("SourceMap has no sources field");
-							if(!_sourceMap.mappings) throw new Error("SourceMap has no mappings field");
-						} catch(e) {
-							$(".custom-error").removeClass("hide").text(e.message);
-							_sourceMap = false;
-						}
-						if(!_sourceMap)
-							return $(".custom-continue").attr("disabled", false);
-						sourceMap = _sourceMap;
-						step3();
-					});
-				}
-			}
-			function step3() {
-				if(!sourceMap.sources || !sourceMap.mappings) {
-					return $(".custom-error")
-						.removeClass("hide")
-						.text("This is not a valid SourceMap.");
-				}
-				if(sourceMap.sourcesContent) {
-					sourcesContent = sourceMap.sourcesContent;
-					return step4();
-				}
-				var sourceFile, sourceFileIndex: number;
-				for(var i = 0; i < sourceMap.sources.length; i++) {
-					if(!sourcesContent[i]) {
-						sourceFile = sourceMap.sources[i];
-						sourceFileIndex = i;
-						break;
-					}
-				}
-				if(i == sourceMap.sources.length) return step4();
-				$(".custom-modal .modal-body").html(require("./custom-step3.jade")({
-					generatedSource: generatedSource,
-					sourceMap: sourceMap,
-					source: sourceFile
-				}));
-				$(".custom-continue").click(continueWithStep4);
-				$(".file").change(continueWithStep4);
-				function continueWithStep4() {
-					loadFile($(".file"), function(err, _originalSource) {
-						$(".custom-error").addClass("hide");
-						if(err) {
-							$(".custom-error").removeClass("hide").text(err.message);
-							return $(".custom-continue").attr("disabled", false);
-						}
-						if(!_originalSource)
-							return $(".custom-continue").attr("disabled", false);
-						sourcesContent[sourceFileIndex] = _originalSource;
-						return step3();
-					});
-				}
-			}
-			function step4() {
-				try {
-					loadCustomExample(sourcesContent, generatedSource, sourceMap);
-					$(".custom-modal").modal("hide");
-					oldHash = window.location.hash = "custom";
-				} catch(e) {
-					$(".custom-error").removeClass("hide").text(e.message);
-					console.error(e.stack);
-					return $(".custom-continue").attr("disabled", false);
-				}
-			}
-
-		} else {
-			if(exampleKinds.indexOf(exampleKind) < 0) exampleKind = "typescript";
-			var exampleJs = require("!raw!../example/"+exampleKind+"/example.js");
-			var exampleMap = require("!json!../example/"+exampleKind+"/example.map");
-			var sources = exampleMap.sourcesContent;
-			if(!sources) {
-				sources = [require("!raw!../example/"+exampleKind+"/example")];
-			}
-			loadExample(sources, exampleJs, exampleMap);
-			$(".custom-link").text("");
-			oldHash = exampleKind;
+		
+		if(exampleKinds.indexOf(exampleKind) < 0) exampleKind = "typescript";
+		var exampleJs = require("!raw!../example/"+exampleKind+"/example.js");
+		var exampleMap = require("!json!../example/"+exampleKind+"/example.map");
+		var sources = exampleMap.sourcesContent;
+		if(!sources) {
+			sources = [require("!raw!../example/"+exampleKind+"/example")];
 		}
+		loadExample(sources, exampleJs, exampleMap);
+		$(".custom-link").text("");
+		oldHash = exampleKind;
 	});
 	$(window).hashchange();
 
@@ -224,7 +105,7 @@ $(function() {
 					var match = SOURCE_MAPPING_URL_REG_EXP.exec(generatedSource) || SOURCE_MAPPING_URL_REG_EXP2.exec(generatedSource);
 					generatedFile.result = generatedFile.result.replace(SOURCE_MAPPING_URL_REG_EXP, "/* base64 source map removed */").replace(SOURCE_MAPPING_URL_REG_EXP2, "/* base64 source map removed */");
 					sourceMapFile = {
-						result: decodeURIComponent(escape(atob(match[1])))
+						result: atob(match[1])
 					};
 					sourceMapFile.json = JSON.parse(sourceMapFile.result);
 				} else {
@@ -282,9 +163,7 @@ $(function() {
 
 	function loadCustomExample(sourcesContent: string[], generatedSource: string, sourceMap: SourceMap.RawSourceMap) {
 		loadExample(sourcesContent, generatedSource, sourceMap);
-		const hash = "base64," + [generatedSource, JSON.stringify(sourceMap)].concat(sourcesContent as any).map(function(str){
-			return btoa(unescape(encodeURIComponent( str )));
-		}).join(",");
+		const hash = "base64," + [generatedSource, JSON.stringify(sourceMap)].concat(sourcesContent as any).map(str => btoa(str)).join(",");
 		window.location.hash = hash;
 	}
 	function loadExample(sources: string[], exampleJs: string, exampleMap: SourceMap.RawSourceMap) {
@@ -297,16 +176,10 @@ $(function() {
 
 			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", (evt: JQueryEventObject) => {
 				$(".selected").removeClass("selected");
-				var mappedItems = $(evt.target).data('mapped');
-				if (!mappedItems){
-					var source = $(evt.target).data("source");
-					var line = $(evt.target).data("line");
-					var column = $(evt.target).data("column");
-					mappedItems = $(".item-" + source + "-" + line + "-" + column);
-					var twinItem = mappedItems.not('.mapping-item').not(evt.target);
-					$(evt.target).data('mapped', mappedItems)
-					$(evt.target).data('twin', twinItem)
-				}
+				const target = $(evt.target);
+				const key = target.data('key');
+				document.title = key;
+				var mappedItems = $(`[data-key="${key}"]`);
 				$(mappedItems).addClass("selected");
 			}).delegate(".original-item, .generated-item, .mapping-item", "click", (evt: JQueryEventObject) => {
 				var twinItem = $(evt.target).data('twin');

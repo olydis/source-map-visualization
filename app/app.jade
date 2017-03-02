@@ -1,11 +1,3 @@
-.container
-	.row
-		.span12
-			h1 source-map-visualization
-			p
-				each kind in kinds
-					a.btn.example(href="#"+kind, data-example=kind)= kind
-					= " "
 pre: code.visu
 .custom-modal.modal.fade.hide
 	.modal-header
@@ -14,3 +6,11 @@ pre: code.visu
 	.modal-body
 	.model-footer
 		.alert.alert-error.custom-error.hide
+.container
+	.row
+		.span12
+			h1 source-map-visualization
+			p
+				each kind in kinds
+					a.btn.example(href="#"+kind, data-example=kind)= kind
+					= " "

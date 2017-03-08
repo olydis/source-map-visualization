@@ -1,7 +1,6 @@
 import * as SourceMap from "source-map";
 import * as $ from "jquery";
 var LINESTYLES = 6;
-var MAX_LINES = 5000;
 
 export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: string, sources: string[]): JQuery {
 	var generatedSide: JQuery[][] = [];
@@ -20,23 +19,11 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	function text(content: string): JQuery {
 		return $("<span>").text(content);
 	}
-	function span(content: string | number, options: any): JQuery {
-		const result = $("<span>");
-
-		if(options) {
-			if(options.generated) {
-				result.addClass("generated-item");
-			} else if(options.mapping) {
-				result.addClass("mapping-item");
-			} else {
-				result.addClass("original-item");
-			}
-			if(typeof options.source !== "undefined") {
-				result.addClass("item-" + options.source + "-" + options.line + "-" + options.column);
-			}
-			result.attr("title", options.name);
-		}
-		result.text(content);
+	function span(content: string | number, title?: string): JQuery {
+		const result = $("<span>")
+			.addClass("mapping-item")
+			.attr("title", title)
+			.text(content);
 		return result;
 	}
 
@@ -47,18 +34,11 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	var generatedLine = 1;
 	var nodes = SourceMap.SourceNode.fromStringWithSourceMap(generatedCode, map).children;
 	nodes.forEach(function(item, idx) {
-		if(generatedLine > MAX_LINES) return;
 		var str = item.toString();
 		var source = mapSources.indexOf(item.source);
 		str.split("\n").forEach(function(line) {
 			const col = (generatedSide[generatedLine] || []).reduce((c, j) => c + j.text().length, 0);
-			addTo(generatedSide, generatedLine, span(line, {
-				generated: true,
-				source: source,
-				line: item.line,
-				column: item.column,
-				name: item.name
-			}), item.line === undefined ? null : getKey({ generatedColumn: col, generatedLine: generatedLine, name: null, source: null, originalColumn: null, originalLine: null }));
+			addTo(generatedSide, generatedLine, span(line, item.name), item.line === undefined ? null : getKey({ generatedColumn: col, generatedLine: generatedLine, name: null, source: null, originalColumn: null, originalLine: null }));
 			generatedLine++;
 		});
 		generatedLine--;
@@ -68,7 +48,6 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	var lastOrgSource = "";
 	var mappingsLine = 1;
 	map.eachMapping(mapping => {
-		if(mapping.generatedLine > MAX_LINES) return;
 		while(lastGenLine < mapping.generatedLine) {
 			mappingsLine++;
 			lastGenLine++;
@@ -80,14 +59,9 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 				lastOrgSource = mapping.source;
 			}
 			var source = mapSources.indexOf(mapping.source);
-			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn + "->" + mapping.originalLine + ":" + mapping.originalColumn, {
-				mapping: true,
-				source: source,
-				line: mapping.originalLine,
-				column: mapping.originalColumn
-			}), getKey(mapping));
+			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn + "->" + mapping.originalLine + ":" + mapping.originalColumn), getKey(mapping));
 		} else {
-			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn, { mapping: true }), getKey(mapping));
+			addTo(mappingsSide, mappingsLine, span(mapping.generatedColumn), getKey(mapping));
 		}
 		addTo(mappingsSide, mappingsLine, text("  "), null);
 	});
@@ -101,7 +75,6 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	var mappingsBySource: { [key: string]: SourceMap.MappingItem[] } = {};
 	map.eachMapping(mapping => {
 		if(typeof mapping.originalLine !== "number") return;
-		if(mapping.generatedLine > MAX_LINES) { limited = true; return }
 		if(!mappingsBySource[mapping.source]) mappingsBySource[mapping.source] = [];
 		mappingsBySource[mapping.source].push(mapping);
 	}, undefined, SourceMap.SourceMapConsumer.ORIGINAL_ORDER);
@@ -143,12 +116,7 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 			if(lastMapping) {
 				var source = mapSources.indexOf(lastMapping.source);
 				if(line < mapping.originalLine) {
-					addTo(originalSide, originalLine, span(exampleLines.shift(), {
-						original: true,
-						source: source,
-						line: lastMapping.originalLine,
-						column: lastMapping.originalColumn
-					}), getKey(lastMapping));
+					addTo(originalSide, originalLine, span(exampleLines.shift()), getKey(lastMapping));
 					originalLine++;
 					line++; column = 0;
 					currentOutputLine++;
@@ -174,12 +142,7 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 					}
 				}
 				if(mapping.originalColumn > column) {
-					addTo(originalSide, originalLine, span(shiftColumns(mapping.originalColumn - column), {
-						original: true,
-						source: source,
-						line: lastMapping.originalLine,
-						column: lastMapping.originalColumn
-					}), null);
+					addTo(originalSide, originalLine, span(shiftColumns(mapping.originalColumn - column)), null);
 				}
 			} else {
 				while(line < mapping.originalLine) {
@@ -197,12 +160,7 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 	function endFile() {
 		if(lastMapping) {
 			var source = mapSources.indexOf(lastMapping.source);
-			addTo(originalSide, originalLine, span(exampleLines.shift(), {
-				original: true,
-				source: source,
-				line: lastMapping.originalLine,
-				column: lastMapping.originalColumn
-			}), null);
+			addTo(originalSide, originalLine, span(exampleLines.shift()), null);
 		}
 		if(!limited) {
 			exampleLines.forEach(line => {

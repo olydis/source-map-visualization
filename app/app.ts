@@ -174,14 +174,14 @@ $(function() {
 			var map = new SourceMap.SourceMapConsumer(exampleMap);
 			visu.append(generateHtml(map, exampleJs, sources));
 
-			$("body").delegate(".original-item, .generated-item, .mapping-item", "mouseenter", (evt: JQueryEventObject) => {
+			$("body").delegate(".mapping-item", "mouseenter", (evt: JQueryEventObject) => {
 				$(".selected").removeClass("selected");
 				const target = $(evt.target);
 				const key = target.data('key');
 				document.title = key;
 				var mappedItems = $(`[data-key="${key}"]`);
 				$(mappedItems).addClass("selected");
-			}).delegate(".original-item, .generated-item, .mapping-item", "click", (evt: JQueryEventObject) => {
+			}).delegate(".mapping-item", "click", (evt: JQueryEventObject) => {
 				var twinItem = $(evt.target).data('twin');
 				var elem = $(twinItem).get(0)
 				if (elem && elem.scrollIntoViewIfNeeded)

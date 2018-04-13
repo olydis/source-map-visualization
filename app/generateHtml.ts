@@ -2,7 +2,7 @@ import * as SourceMap from "source-map";
 import * as $ from "jquery";
 var LINESTYLES = 6;
 
-export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: string, sources: string[]): JQuery {
+export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: string, sources: string[]): void {
 	var generatedSide: JQuery[][] = [];
 	var originalSide: JQuery[][] = [];
 	var mappingsSide: JQuery[][] = [];
@@ -179,23 +179,6 @@ export function generateHtml(map: SourceMap.SourceMapConsumer, generatedCode: st
 		return nextLine.substr(0, count);
 	}
 
-	var length = Math.max(originalSide.length, generatedSide.length, mappingsSide.length);
-
-	var tableRows: JQuery[][] = [];
-
-	for(var i = 0; i < length; i++) {
-		tableRows[i] = [
-			originalSide[i] || [],
-			generatedSide[i] || [],
-			//mappingsSide[i] || []
-		].map(function(cell) {
-			return $("<td>").append(cell);
-		});
-	}
-
-	const table = $("<table>");
-	for (const row of tableRows) {
-		table.append($("<tr>").append(row));
-	}
-	return table;
+	$(".visu1").text("").append($("<pre>").append(originalSide.map(x => $("<div>").append(x))));
+	$(".visu2").text("").append($("<pre>").append(generatedSide.map(x => $("<div>").append(x))));
 }

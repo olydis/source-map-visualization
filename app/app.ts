@@ -8,14 +8,12 @@ import { generateHtml } from "./generateHtml";
 
 const $: any = $$;
 
-var exampleKinds = ["coffee", "simple-coffee", "typescript", "babel"];
 var SOURCE_MAPPING_URL_REG_EXP = /\/\/[@#]\s*sourceMappingURL\s*=\s*data:[^\n]*?base64,([^\n]*)/;
 var SOURCE_MAPPING_URL_REG_EXP2 = /\/\*\s*[@#]\s*sourceMappingURL\s*=\s*data:[^\n]*?base64,([^\n]*)\s*\*\//;
 
 $(function() {
-	require("bootstrap");
 	require("./app.less");
-	$("body").html(require("./app.jade")({kinds: exampleKinds}));
+	$("body").html(require("./app.jade")());
 
 	var oldHash = "";
 	$(".close").click(function() {
@@ -25,9 +23,6 @@ $(function() {
 	$(window).hashchange(function() {
 		var exampleKind = window.location.hash.replace(/^#/, "");
 
-		if(exampleKind !== "custom-choose")
-			$(".custom-modal").modal("hide");
-
 		if(exampleKind.indexOf("base64") === 0) {
 			var input = exampleKind.split(",").slice(1).map(atob);
 			var gen = input.shift();
@@ -36,19 +31,7 @@ $(function() {
 			oldHash = exampleKind;
 			return;
 		}
-		exampleKind = exampleKind.toLowerCase();
-		if(exampleKind === "custom") return;
-		
-		if(exampleKinds.indexOf(exampleKind) < 0) exampleKind = "typescript";
-		var exampleJs = require("!raw!../example/"+exampleKind+"/example.js");
-		var exampleMap = require("!json!../example/"+exampleKind+"/example.map");
-		var sources = exampleMap.sourcesContent;
-		if(!sources) {
-			sources = [require("!raw!../example/"+exampleKind+"/example")];
-		}
-		loadExample(sources, exampleJs, exampleMap);
-		$(".custom-link").text("");
-		oldHash = exampleKind;
+		throw new Error("no input");
 	});
 	$(window).hashchange();
 
@@ -56,12 +39,6 @@ $(function() {
 		e.stopPropagation();
 		e.preventDefault();
 
-		var m = $(".custom-modal").data("modal");
-		if(m && m.isShown) return undefined;
-		$(".custom-modal .modal-body").html(require("./custom-drag.jade")());
-		$(".custom-modal").modal({
-			show: true
-		});
 		$(".custom-error").addClass("hide");
 		return false;
 	});
@@ -154,7 +131,6 @@ $(function() {
 					generatedFile.result,
 					sourceMapFile.json
 				);
-				$(".custom-modal").modal("hide");
 			} catch(err) {
 				return $(".custom-error").removeClass("hide").text(err.message).attr("title", err.stack);
 			}
@@ -167,12 +143,10 @@ $(function() {
 		window.location.hash = hash;
 	}
 	function loadExample(sources: string[], exampleJs: string, exampleMap: SourceMap.RawSourceMap) {
-		var visu = $(".visu").hide().text("");
-
 		try {
 			exampleMap.file = exampleMap.file || "example.js";
 			var map = new SourceMap.SourceMapConsumer(exampleMap);
-			visu.append(generateHtml(map, exampleJs, sources));
+			generateHtml(map, exampleJs, sources);
 
 			$("body").delegate(".mapping-item", "mouseenter", (evt: JQueryEventObject) => {
 				$(".selected").removeClass("selected");
@@ -187,12 +161,8 @@ $(function() {
 				if (elem && elem.scrollIntoViewIfNeeded)
 					elem.scrollIntoViewIfNeeded();
 			});
-
-			visu.append($("<br>"));
 		} catch(e) {
 			throw e;
-		} finally {
-			visu.show();
 		}
 	}
 });

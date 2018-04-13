@@ -1,16 +1,7 @@
-pre: code.visu
-.custom-modal.modal.fade.hide
-	.modal-header
-		a.close(data-dismiss="modal") &times;
-		h3 Custom SourceMap
-	.modal-body
-	.model-footer
-		.alert.alert-error.custom-error.hide
-.container
-	.row
-		.span12
-			h1 source-map-visualization
-			p
-				each kind in kinds
-					a.btn.example(href="#"+kind, data-example=kind)= kind
-					= " "
+.main
+	table
+		tr
+			td
+				.visu-panel.visu1
+			td
+				.visu-panel.visu2
